@@ -2,6 +2,10 @@ import React from 'react';
 import { Link } from "react-router-dom";
 import { Container, Table, Form, Button } from 'react-bootstrap';
 
+// id_usuario fixo em 1: o sistema ainda não tem autenticação (mesma
+// convenção já usada em cadastrar_pergunta no backend).
+const ID_USUARIO_ATUAL = 1;
+
 function postPergunta(pergunta, update) {
   const request = {
     method: 'POST',
@@ -11,6 +15,17 @@ function postPergunta(pergunta, update) {
   fetch('http://localhost:5000/perguntas', request)
     .then(response => response.json())
     .then(data => update(data.id_pergunta, pergunta));
+}
+
+function postVoto(id_pergunta, tipo, update) {
+  const request = {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id_usuario: ID_USUARIO_ATUAL, tipo: tipo })
+  };
+  fetch(`http://localhost:5000/perguntas/${id_pergunta}/votos`, request)
+    .then(response => response.json())
+    .then(data => update(id_pergunta, data.saldo));
 }
 
 function NovaPergunta(props) {
@@ -47,9 +62,16 @@ function Pergunta() {
         id_pergunta: id_pergunta,
         texto: pergunta,
         num_respostas: 0,
+        saldo_votos: 0,
       };
       return [...prev, novaPergunta];
     });
+  }
+
+  function atualizarSaldoVotos(id_pergunta, saldo) {
+    setListaPerguntas((prev) =>
+      prev.map((p) => (p.id_pergunta === id_pergunta ? { ...p, saldo_votos: saldo } : p))
+    );
   }
 
   function TabelaPerguntas() {   
@@ -63,6 +85,27 @@ function Pergunta() {
               <Link to = {`/resposta/${pergunta.id_pergunta}`}> 
                  {pergunta.num_respostas}
               </Link>
+          </td>
+          <td className="text-center">
+            <Button
+              id={`btn-upvote-${pergunta.id_pergunta}`}
+              size="sm"
+              variant="outline-success"
+              onClick={() => postVoto(pergunta.id_pergunta, 'upvote', atualizarSaldoVotos)}
+            >
+              ▲
+            </Button>
+            {' '}
+            <span id={`saldo-votos-${pergunta.id_pergunta}`}>{pergunta.saldo_votos ?? 0}</span>
+            {' '}
+            <Button
+              id={`btn-downvote-${pergunta.id_pergunta}`}
+              size="sm"
+              variant="outline-danger"
+              onClick={() => postVoto(pergunta.id_pergunta, 'downvote', atualizarSaldoVotos)}
+            >
+              ▼
+            </Button>
           </td>
         </tr>
       );
@@ -79,6 +122,7 @@ function Pergunta() {
                 <th className="text-center">ID</th>
                 <th className="text-center">Pergunta</th>
                 <th className="text-center"># Respostas</th>
+                <th className="text-center">Votos</th>
               </tr>
             </thead>
             <tbody>
